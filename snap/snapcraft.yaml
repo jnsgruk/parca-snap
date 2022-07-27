@@ -1,0 +1,78 @@
+name: parca
+adopt-info: parca
+summary: Parca continuous profiling tool
+description: |
+  Continuous profiling for analysis of CPU and memory usage, down to the line
+  number and throughout time. Saving infrastructure cost, improving performance,
+  and increasing reliability.
+license: Apache-2.0
+contact: jon.seager@canonical.com
+issues: https://github.com/jnsgruk/parca-snap/issues
+source-code: https://github.com/jnsgruk/parca-snap
+website: https://parca.dev
+confinement: strict
+grade: stable
+base: core22
+compression: lzo
+
+architectures:
+  - build-on: amd64
+  - build-on: arm64
+
+parts:
+  parca:
+    plugin: dump
+    build-packages:
+      - build-essential
+    build-snaps:
+      - go/1.18/stable
+      - node/16/stable
+      - jq/latest/stable
+      - goreleaser/latest/stable
+    source: https://github.com/parca-dev/parca
+    source-type: git
+    # source-tag: v0.12.0
+    source-commit: e888718c206a5dd63d476849c7349a0352547f1a
+    override-build: |
+      # Set the version of Parca for the build, and the snap
+      export GORELEASER_CURRENT_TAG="$(git describe --match 'v*' --tags)" 
+      craftctl set version="${GORELEASER_CURRENT_TAG}"
+      
+      # Build Parca using goreleaser
+      goreleaser build \
+        --rm-dist \
+        --skip-validate \
+        --snapshot \
+        --debug \
+        --single-target
+      
+      # Grab the path of the built binary from the artifact manifest
+      ARTIFACT_PATH="$(cat dist/artifacts.json | jq -r '.[0].path')"
+      
+      # Copy into the install path so we can stage the binary
+      cp $ARTIFACT_PATH $CRAFT_PART_INSTALL/parca
+    organize:
+      parca: usr/bin/parca
+    stage:
+      - usr/bin/parca
+
+  local-parts:
+    plugin: dump
+    source: snap/local
+    source-type: local
+    after: [parca]
+
+apps:
+  parca:
+    command: usr/bin/parca
+    plugs:
+      - network-bind
+      - network
+  parca-svc:
+    command: bin/parca-wrapper
+    daemon: simple
+    install-mode: disable
+    restart-condition: never
+    plugs:
+      - network-bind
+      - network

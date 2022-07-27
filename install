@@ -1,0 +1,4 @@
+#!/usr/bin/env bash
+
+# Run the configure hook - it has all the logic we need here
+${SNAP}/snap/hooks/configure

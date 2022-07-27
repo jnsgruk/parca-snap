@@ -1,0 +1,21 @@
+name: Build and Test
+
+on:
+  workflow_call:
+    outputs:
+      snap:
+        description: "Filename of the built snap"
+        value: ${{ jobs.main.outputs.snap }}
+
+jobs:
+  main:
+    runs-on: ubuntu-latest
+    outputs:
+      snap: ${{ steps.snapcraft.outputs.snap }}
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v3
+
+      - name: Build snap locally
+        uses: snapcore/action-build@v1
+        id: snapcraft
