@@ -19,3 +19,28 @@ jobs:
       - name: Build snap locally
         uses: snapcore/action-build@v1
         id: snapcraft
+        with:
+          snapcraft-channel: 7.x/candidate
+
+      - name: Upload locally built snap artifact
+        uses: actions/upload-artifact@v3
+        with:
+          name: local-${{ steps.snapcraft.outputs.snap }}
+          path: ${{ steps.snapcraft.outputs.snap }}
+
+      - name: Install snap & invoke parca
+        run: |
+          sudo snap install --dangerous ${{ steps.snapcraft.outputs.snap }}
+          parca --version
+
+      - name: Start Parca and ensure API is up
+        run: |
+          # Start the service packaged with the snap
+          sudo snap start parca
+          sleep 5
+
+          # Check we can hit the main web endpoint
+          curl http://localhost:7070/
+
+          # Check we can hit the metrics endpoint
+          curl http://localhost:7070/metrics

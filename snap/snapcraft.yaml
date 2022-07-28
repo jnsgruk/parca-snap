@@ -17,7 +17,7 @@ compression: lzo
 
 architectures:
   - build-on: amd64
-  - build-on: arm64
+  # - build-on: arm64
 
 parts:
   parca:
@@ -36,8 +36,9 @@ parts:
     override-build: |
       # Set the version of Parca for the build, and the snap
       export GORELEASER_CURRENT_TAG="$(git describe --match 'v*' --tags)" 
-      craftctl set version="${GORELEASER_CURRENT_TAG}"
-      
+      # Set the version of the snap, stripping the leading 'v'
+      craftctl set version="${GORELEASER_CURRENT_TAG:1}"
+
       # Build Parca using goreleaser
       goreleaser build \
         --rm-dist \
@@ -45,10 +46,10 @@ parts:
         --snapshot \
         --debug \
         --single-target
-      
+
       # Grab the path of the built binary from the artifact manifest
       ARTIFACT_PATH="$(cat dist/artifacts.json | jq -r '.[0].path')"
-      
+
       # Copy into the install path so we can stage the binary
       cp $ARTIFACT_PATH $CRAFT_PART_INSTALL/parca
     organize:
@@ -68,6 +69,8 @@ apps:
     plugs:
       - network-bind
       - network
+      - home
+      - etc-parca
   parca-svc:
     command: bin/parca-wrapper
     daemon: simple
@@ -76,3 +79,11 @@ apps:
     plugs:
       - network-bind
       - network
+      - home
+      - etc-parca
+
+plugs:
+  etc-parca:
+    interface: system-files
+    read:
+      - /etc/parca

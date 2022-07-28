@@ -5,7 +5,7 @@ on:
     branches:
       - main
     paths:
-      - "snap/snapcraft.yaml"
+      - "snap/**"
       - ".github/workflows/**.yaml"
 
 jobs:
