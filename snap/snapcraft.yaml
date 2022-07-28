@@ -69,6 +69,8 @@ apps:
     plugs:
       - network-bind
       - network
+      - home
+      - config-parca
   parca-svc:
     command: bin/parca-wrapper
     daemon: simple
@@ -77,3 +79,11 @@ apps:
     plugs:
       - network-bind
       - network
+      - home
+      - config-parca
+
+plugs:
+  config-parca:
+    interface: system-files
+    read:
+      - /etc/parca/parca.yaml

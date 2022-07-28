@@ -37,6 +37,7 @@ jobs:
         run: |
           # Start the service packaged with the snap
           sudo snap start parca
+          sleep 5
 
           # Check we can hit the main web endpoint
           curl http://localhost:7070/
