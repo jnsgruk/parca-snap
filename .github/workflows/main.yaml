@@ -35,8 +35,9 @@ jobs:
           git config --global user.email "github-actions@github.com"
           git config --global user.name "Github Actions"
 
+      # Restrict to amd64 for now
       - name: Remote build the snap
-        run: snapcraft remote-build --launchpad-accept-public-upload
+        run: snapcraft remote-build --launchpad-accept-public-upload --build-on amd64
 
       - name: Upload remote build snap artifacts and build logs
         uses: actions/upload-artifact@v3
