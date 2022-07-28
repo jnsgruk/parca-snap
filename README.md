@@ -17,8 +17,13 @@ You can start Parca manually like so:
 ```bash
 # Install from the 'edge' channel
 $ sudo snap install parca --channel edge
-# Start Parca with the config file from the SNAP_DATA directory
+
+# Start Parca with the default config file from the SNAP_DATA directory
 $ parca --config-file=/var/snap/parca/current/parca.yaml
+
+# Or grab the default config from the Parca repo
+$ wget -qO ~/parca.yaml https://raw.githubusercontent.com/parca-dev/parca/main/parca.yaml
+$ parca --config-file=~/parca.yaml
 ```
 
 ## Parca Service
