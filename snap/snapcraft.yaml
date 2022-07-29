@@ -21,7 +21,7 @@ architectures:
 
 parts:
   parca:
-    plugin: dump
+    plugin: nil
     build-packages:
       - build-essential
     build-snaps:
@@ -31,13 +31,17 @@ parts:
       - goreleaser/latest/stable
     source: https://github.com/parca-dev/parca
     source-type: git
-    # source-tag: v0.12.0
-    source-commit: e888718c206a5dd63d476849c7349a0352547f1a
+    # source-commit: 5a8dea4577eeb15c7cf8795ad11ecf8dfff2174d
     override-build: |
       # Set the version of Parca for the build, and the snap
       export GORELEASER_CURRENT_TAG="$(git describe --match 'v*' --tags)" 
+
       # Set the version of the snap, stripping the leading 'v'
       craftctl set version="${GORELEASER_CURRENT_TAG:1}"
+
+      # Adjust goreleaser.yml to not include extra '-next' in snapshot release version
+      # (Use when building an actual release, not just from HEAD!)
+      # sed -i "s|{{ incpatch .Tag }}-next|{{ .Tag }}|g" .goreleaser.yml
 
       # Build Parca using goreleaser
       goreleaser build \
