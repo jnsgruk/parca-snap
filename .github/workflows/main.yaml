@@ -9,44 +9,42 @@ on:
       - ".github/workflows/**.yaml"
 
 jobs:
-  build-and-test:
-    uses: ./.github/workflows/build-and-test.yaml
-
-  publish:
-    # Prevent this job from running concurrently so we don't spam launchpad
-    concurrency: lp-remote-build
-    needs: build-and-test
+  build-test-publish:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout repository
         uses: actions/checkout@v3
 
-      - name: Setup snapcraft
-        env:
-          LP_BUILD_SECRET: ${{ secrets.LP_BUILD_SECRET }}
-          SNAPCRAFT_STORE_CREDENTIALS: ${{ secrets.STORE_LOGIN }}
-        run: |
-          # Install snapcraft
-          sudo snap install snapcraft --classic --channel=7.x/candidate
+      - name: Build snap locally
+        uses: snapcore/action-build@v1
+        id: snapcraft
+        with:
+          snapcraft-channel: 7.x/candidate
 
-          # Setup Launchpad credentials
-          mkdir -p ~/.local/share/snapcraft/provider/launchpad
-          echo "$LP_BUILD_SECRET" > ~/.local/share/snapcraft/provider/launchpad/credentials
-          git config --global user.email "github-actions@github.com"
-          git config --global user.name "Github Actions"
-
-      - name: Remote build the snap
-        run: snapcraft remote-build --launchpad-accept-public-upload
-
-      - name: Upload remote build snap artifacts and build logs
+      - name: Upload locally built snap artifact
         uses: actions/upload-artifact@v3
         with:
-          name: remote-build-snaps
-          path: |
-            **/*.snap
-            **/*.txt
+          name: local-${{ steps.snapcraft.outputs.snap }}
+          path: ${{ steps.snapcraft.outputs.snap }}
 
-      - name: Upload and release (edge, candidate)
+      - name: Install snap & invoke parca
+        run: |
+          sudo snap install --dangerous ${{ steps.snapcraft.outputs.snap }}
+          parca --version
+
+      - name: Start Parca and ensure API is up
+        run: |
+          # Start the service packaged with the snap
+          sudo snap start parca
+          sleep 5
+
+          # Check we can hit the main web endpoint
+          curl http://localhost:7070/
+
+          # Check we can hit the metrics endpoint
+          curl http://localhost:7070/metrics
+
+      - name: Publish
         env:
           SNAPCRAFT_STORE_CREDENTIALS: ${{ secrets.STORE_LOGIN }}
         run: |
@@ -54,9 +52,9 @@ jobs:
           VERSION="$(ls *_amd64.snap | cut -d"_" -f2)"
 
           # If the version conforms to a standard semantic version, release to edge & candidate.
-          # This means that '1.2.2' would release to edge & candidate, but '1.2.3-rc1' or 
+          # This means that '1.2.2' would release to edge & candidate, but '1.2.3-rc1' or
           # '1.2.3-alpha20220606' would just release to edge.
-           
+
           if echo "$VERSION" | grep -qPo "[0-9]+\.[0-9]+\.[0-9]+$"; then
             CHANNELS="edge,candidate"
           else
@@ -64,6 +62,63 @@ jobs:
           fi
 
           # Upload the snaps and release to edge, candidate
-          for snap in *.snap; do
-            snapcraft upload --release "$CHANNELS" "$snap"
-          done
+          snapcraft upload --release "$CHANNELS" ${{ steps.snapcraft.outputs.snap }}
+
+  # build-and-test:
+  #   uses: ./.github/workflows/build-and-test.yaml
+
+  # publish:
+  #   # Prevent this job from running concurrently so we don't spam launchpad
+  #   concurrency: lp-remote-build
+  #   needs: build-and-test
+  #   runs-on: ubuntu-latest
+  #   steps:
+  #     - name: Checkout repository
+  #       uses: actions/checkout@v3
+
+  #     - name: Setup snapcraft
+  #       env:
+  #         LP_BUILD_SECRET: ${{ secrets.LP_BUILD_SECRET }}
+  #         SNAPCRAFT_STORE_CREDENTIALS: ${{ secrets.STORE_LOGIN }}
+  #       run: |
+  #         # Install snapcraft
+  #         sudo snap install snapcraft --classic --channel=7.x/candidate
+
+  #         # Setup Launchpad credentials
+  #         mkdir -p ~/.local/share/snapcraft/provider/launchpad
+  #         echo "$LP_BUILD_SECRET" > ~/.local/share/snapcraft/provider/launchpad/credentials
+  #         git config --global user.email "github-actions@github.com"
+  #         git config --global user.name "Github Actions"
+
+  #     - name: Remote build the snap
+  #       run: snapcraft remote-build --launchpad-accept-public-upload
+
+  #     - name: Upload remote build snap artifacts and build logs
+  #       uses: actions/upload-artifact@v3
+  #       with:
+  #         name: remote-build-snaps
+  #         path: |
+  #           **/*.snap
+  #           **/*.txt
+
+  #     - name: Upload and release (edge, candidate)
+  #       env:
+  #         SNAPCRAFT_STORE_CREDENTIALS: ${{ secrets.STORE_LOGIN }}
+  #       run: |
+  #         # Get the current version of the snap
+  #         VERSION="$(ls *_amd64.snap | cut -d"_" -f2)"
+
+  #         # If the version conforms to a standard semantic version, release to edge & candidate.
+  #         # This means that '1.2.2' would release to edge & candidate, but '1.2.3-rc1' or
+  #         # '1.2.3-alpha20220606' would just release to edge.
+
+  #         if echo "$VERSION" | grep -qPo "[0-9]+\.[0-9]+\.[0-9]+$"; then
+  #           CHANNELS="edge,candidate"
+  #         else
+  #           CHANNELS="edge"
+  #         fi
+
+  #         # Upload the snaps and release to edge, candidate
+  #         for snap in *.snap; do
+  #           snapcraft upload --release "$CHANNELS" "$snap"
+  #         done
