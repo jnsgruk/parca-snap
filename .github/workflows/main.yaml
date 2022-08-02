@@ -9,40 +9,20 @@ on:
       - ".github/workflows/**.yaml"
 
 jobs:
-  build-test-publish:
+  build:
+    uses: ./.github/workflows/build-and-test.yaml
+
+  publish:
     runs-on: ubuntu-latest
+    needs: [build]
     steps:
-      - name: Checkout repository
-        uses: actions/checkout@v3
-
-      - name: Build snap locally
-        uses: snapcore/action-build@v1
-        id: snapcraft
+      - name: Fetch built snap
+        uses: actions/download-artifact@v3
         with:
-          snapcraft-channel: 7.x/candidate
+          name: ${{ needs.build.outputs.snap }}
 
-      - name: Upload locally built snap artifact
-        uses: actions/upload-artifact@v3
-        with:
-          name: local-${{ steps.snapcraft.outputs.snap }}
-          path: ${{ steps.snapcraft.outputs.snap }}
-
-      - name: Install snap & invoke parca
-        run: |
-          sudo snap install --dangerous ${{ steps.snapcraft.outputs.snap }}
-          parca --version
-
-      - name: Start Parca and ensure API is up
-        run: |
-          # Start the service packaged with the snap
-          sudo snap start parca
-          sleep 5
-
-          # Check we can hit the main web endpoint
-          curl http://localhost:7070/
-
-          # Check we can hit the metrics endpoint
-          curl http://localhost:7070/metrics
+      - name: Install Snapcraft
+        run: sudo snap install snapcraft --classic --channel=7.x/candidate
 
       - name: Publish
         env:
@@ -62,7 +42,7 @@ jobs:
           fi
 
           # Upload the snaps and release to edge, candidate
-          snapcraft upload --release "$CHANNELS" ${{ steps.snapcraft.outputs.snap }}
+          snapcraft upload --release "$CHANNELS" *.snap
 
   # build-and-test:
   #   uses: ./.github/workflows/build-and-test.yaml

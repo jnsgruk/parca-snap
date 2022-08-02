@@ -1,14 +1,14 @@
-name: Build and Test
+name: Build/Test
 
 on:
   workflow_call:
     outputs:
       snap:
-        description: "Filename of the built snap"
-        value: ${{ jobs.main.outputs.snap }}
+        description: "Filename of the built snap artefact"
+        value: local-${{ jobs.build.outputs.snap }}
 
 jobs:
-  main:
+  build:
     runs-on: ubuntu-latest
     outputs:
       snap: ${{ steps.snapcraft.outputs.snap }}
@@ -28,19 +28,33 @@ jobs:
           name: local-${{ steps.snapcraft.outputs.snap }}
           path: ${{ steps.snapcraft.outputs.snap }}
 
+  test:
+    runs-on: ubuntu-latest
+    needs: [build]
+    steps:
+      - name: Fetch built snap
+        uses: actions/download-artifact@v3
+        with:
+          name: local-${{ needs.build.outputs.snap }}
+
       - name: Install snap & invoke parca
         run: |
-          sudo snap install --dangerous ${{ steps.snapcraft.outputs.snap }}
+          sudo snap install --dangerous ${{ needs.build.outputs.snap }}
           parca --version
 
       - name: Start Parca and ensure API is up
         run: |
-          # Start the service packaged with the snap
           sudo snap start parca
-          sleep 5
+          # Set some options to allow retries while Parca comes back up
+          CURL_OPTS=(--max-time 20 --retry 5 --retry-delay 3 --retry-connrefused)
+          curl ${CURL_OPTS[@]} http://localhost:7070/
+          curl ${CURL_OPTS[@]} http://localhost:7070/
 
-          # Check we can hit the main web endpoint
-          curl http://localhost:7070/
-
-          # Check we can hit the metrics endpoint
-          curl http://localhost:7070/metrics
+      - name: Configure storage persistence
+        run: |
+          sudo snap set parca storage-persist=true
+          sudo snap restart parca
+          # Set some options to allow retries while Parca comes back up
+          CURL_OPTS=(--max-time 20 --retry 5 --retry-delay 3 --retry-connrefused)
+          curl ${CURL_OPTS[@]} http://localhost:7070/
+          curl ${CURL_OPTS[@]} http://localhost:7070/metrics
