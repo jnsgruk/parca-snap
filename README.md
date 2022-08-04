@@ -37,11 +37,6 @@ $ snap start parca
 
 There are a small number of config options:
 
-storage_active_memory="$(snapctl get storage-active-memory)"
-log_level="$(snapctl get log-level)"
-storage_persist="$(snapctl get storage-persist)"
-port="$(snapctl get port)"
-
 | Name                    | Valid Options                    | Default     | Description                                                                                        |
 | :---------------------- | :------------------------------- | :---------- | :------------------------------------------------------------------------------------------------- |
 | `storage-active-memory` | Any `int`                        | `536870912` | Total bytes in memory used for active memory storage                                               |
